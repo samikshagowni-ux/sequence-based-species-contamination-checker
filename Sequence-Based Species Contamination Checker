@@ -1,0 +1,71 @@
+from google.colab import files #1
+
+uploaded = files.upload() 
+
+import zipfile #2
+import os
+
+zip_path = "species-contamination-checker.zip"
+
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall("/content/")
+
+os.chdir("/content/species-contamination-checker")
+
+print(os.listdir()) 
+
+!pip install -r requirements.txt #3
+!pytest -q #4
+import subprocess
+import time
+
+log_file = open("/content/streamlit.log", "w") #5
+
+streamlit_process = subprocess.Popen(
+    [
+        "streamlit", "run", "app.py",
+        "--server.address", "0.0.0.0",
+        "--server.port", "8501",
+        "--server.headless", "true"
+    ],
+    stdout=log_file,
+    stderr=subprocess.STDOUT
+)
+
+time.sleep(5)
+
+print("Streamlit application started!")
+
+!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /content/cloudflared #6
+!chmod +x /content/cloudflared
+
+import subprocess #7
+import time
+import re
+
+tunnel_log = open("/content/cloudflared.log", "w")
+
+tunnel_process = subprocess.Popen(
+    [
+        "/content/cloudflared",
+        "tunnel",
+        "--url", "http://127.0.0.1:8501",
+        "--no-autoupdate"
+    ],
+    stdout=tunnel_log,
+    stderr=subprocess.STDOUT
+)
+
+time.sleep(10)
+
+with open("/content/cloudflared.log") as f:
+    logs = f.read()
+
+match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", logs)
+
+if match:
+    print("YOUR APPLICATION LINK:")
+    print(match.group(0))
+else:
+    print("Tunnel link not found yet. Run this cell again:")
+    print(logs[-2000:])
